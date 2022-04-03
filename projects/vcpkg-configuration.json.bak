@@ -1,0 +1,14 @@
+{
+	"default-registry": {
+		"kind" : "builtin",
+		"baseline" : "4156B32584AA0DA9A21ABC997EA4623BAC0CBBA7"
+	},
+	
+	"registries" : [
+		{
+		  "kind": "builtin",
+		  "baseline": "FBD77E01D0079EB15E6492E6A5587D214B1E32D2",
+		  "packages": [ "cairo-gl" ]		
+		}
+	]
+}
