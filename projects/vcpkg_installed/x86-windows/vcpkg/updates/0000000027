@@ -1,0 +1,7 @@
+Package: glad
+Feature: extensions
+Architecture: x86-windows
+Multi-Arch: same
+Description: Enables all extensions.
+Type: Port
+Status: install ok half-installed

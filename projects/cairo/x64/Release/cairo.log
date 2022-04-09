@@ -1,52 +1,12 @@
-﻿  Installing vcpkg dependencies to D:\project2\Cairo-VS\projects\vcpkg_installed\x64-windows\
-  "C:\vcpkg\vcpkg.exe" install  --x-wait-for-lock --triplet "x64-windows" --vcpkg-root "C:\vcpkg\\" "--x-manifest-root=D:\project2\Cairo-VS\projects\\" "--x-install-root=D:\project2\Cairo-VS\projects\vcpkg_installed\x64-windows\\" --debug
-  [DEBUG] Feature flag 'binarycaching' unset
-  [DEBUG] Feature flag 'manifests' unset
-  [DEBUG] Feature flag 'compilertracking' unset
-  [DEBUG] Feature flag 'registries' unset
-  [DEBUG] Feature flag 'versions' unset
-  [DEBUG] Failed to open: C:\vcpkg\vcpkg-bundle.json
-  [DEBUG] Bundle config: readonly=0, usegitregistry=0, embeddedsha=nullopt
-  [DEBUG] Using builtin-ports: C:\vcpkg\ports
-  [DEBUG] Using installed-root: D:\project2\Cairo-VS\projects\vcpkg_installed\x64-windows\
-  [DEBUG] Using buildtrees-root: C:\vcpkg\buildtrees
-  [DEBUG] Using packages-root: C:\vcpkg\packages
-  [DEBUG] Using manifest-root: D:\project2\Cairo-VS\projects\
-  [DEBUG] Using scripts-root: C:\vcpkg\scripts
-  [DEBUG] Using vcpkg-root: C:\vcpkg\
-  [DEBUG] Using scripts-root: C:\vcpkg\scripts
-  [DEBUG] Using builtin-registry: C:\vcpkg\versions
-  [DEBUG] Using downloads-root: C:\vcpkg\downloads
-  [DEBUG] Default binary cache path is: C:\Users\hmkim\AppData\Local\vcpkg\archives
-  [DEBUG] Using overlay: D:\project2\Cairo-VS\projects
-  [DEBUG] CreateProcessW("C:\vcpkg\downloads\tools\cmake-3.22.2-windows\cmake-3.22.2-windows-i386\bin\cmake.exe" --version)
-  [DEBUG] ReadFile() finished with GetLastError(): 109
-  [DEBUG] 25680: cmd_execute_and_stream_data() returned 0 after    61745 us
-  [DEBUG] CreateProcessW("C:\vcpkg\downloads\tools\cmake-3.22.2-windows\cmake-3.22.2-windows-i386\bin\cmake.exe" -DVCPKG_ROOT_DIR=C:/vcpkg/ -DPACKAGES_DIR=C:/vcpkg/packages -DBUILDTREES_DIR=C:/vcpkg/buildtrees -D_VCPKG_INSTALLED_DIR=D:/project2/Cairo-VS/projects/vcpkg_installed/x64-windows/ -DDOWNLOADS=C:/vcpkg/downloads -DVCPKG_MANIFEST_INSTALL=OFF -P "C:\vcpkg\buildtrees\0.vcpkg_dep_info.cmake")
-  [DEBUG] ReadFile() finished with GetLastError(): 109
-  [DEBUG] 25680: cmd_execute_and_stream_data() returned 0 after    44281 us
-  [DEBUG] Found path: C:\Program Files\Git\cmd\git.exe
-  [DEBUG] CreateProcessW("C:\Program Files\Git\cmd\git.exe" --version)
-  [DEBUG] ReadFile() finished with GetLastError(): 109
-  [DEBUG] 25680: cmd_execute_and_stream_data() returned 0 after    44817 us
-  [DEBUG] CreateProcessW("C:\Program Files\Git\cmd\git.exe" "--git-dir=C:\vcpkg\.git" "--work-tree=C:\vcpkg\.git" -c core.autocrlf=false show 1d4e99e826267c8fe8a51873d67381b54dc2cf8d:versions/baseline.json)
-  [DEBUG] ReadFile() finished with GetLastError(): 109
-  [DEBUG] 25680: cmd_execute_and_stream_data() returned 128 after    55567 us
-  [DEBUG] CreateProcessW("C:\Program Files\Git\cmd\git.exe" "--git-dir=C:\vcpkg\.git" "--work-tree=C:\vcpkg\\" -c core.autocrlf=false rev-parse HEAD)
-  [DEBUG] ReadFile() finished with GetLastError(): 109
-  [DEBUG] 25680: cmd_execute_and_stream_data() returned 0 after    49854 us
-EXEC : error : while checking out baseline from commit '1d4e99e826267c8fe8a51873d67381b54dc2cf8d' at subpath 'versions/baseline.json':
-  fatal: path 'versions/baseline.json' exists on disk, but not in '1d4e99e826267c8fe8a51873d67381b54dc2cf8d'
-  
-  This may be fixed by updating vcpkg to the latest master via `git pull` or fetching commits via `git fetch`.
-  
-  You can use the current commit as a baseline, which is:
-      "builtin-baseline": "01d6f6ff1e5332b926099f0c23bda996940ad4e8"
-  [DEBUG] D:\a\_work\1\s\src\vcpkg\registries.cpp(549): 
-  [DEBUG] Time in subprocesses: 256264 us
-  [DEBUG] Time in parsing JSON: 63 us
-  [DEBUG] Time in JSON reader: 101 us
-  [DEBUG] Time in filesystem: 3183 us
-  [DEBUG] Time in loading ports: 243 us
-  [DEBUG] Exiting after 302.7 ms (289664 us)
-C:\vcpkg\scripts\buildsystems\msbuild\vcpkg.targets(156,5): error MSB3073: The command ""C:\vcpkg\vcpkg.exe" install  --x-wait-for-lock --triplet "x64-windows" --vcpkg-root "C:\vcpkg\\" "--x-manifest-root=D:\project2\Cairo-VS\projects\\" "--x-install-root=D:\project2\Cairo-VS\projects\vcpkg_installed\x64-windows\\" --debug" exited with code 1.
+﻿  cairo.vcxproj -> D:\project2\Cairo-VS\projects\installed\x64-windows\bin\cairo.dll
+          1개 파일이 복사되었습니다.
+          1개 파일이 복사되었습니다.
+          1개 파일이 복사되었습니다.
+          1개 파일이 복사되었습니다.
+          1개 파일이 복사되었습니다.
+          1개 파일이 복사되었습니다.
+          1개 파일이 복사되었습니다.
+          1개 파일이 복사되었습니다.
+          1개 파일이 복사되었습니다.
+          1개 파일이 복사되었습니다.
+          1개 파일이 복사되었습니다.

@@ -1,7 +1,8 @@
 {
-	"name": "cairo-gl",
-	"version-string": "1.17.2-dev",
-	"builtin-baseline": "2022-03-29",
+	"name": "cairo-glad",
+	"version-string": "1.17.2",
+	"port-version" : 1,
+	"builtin-baseline": "1.17.2#1",
 	"dependencies": [
 		{
 			"name" : "freetype",

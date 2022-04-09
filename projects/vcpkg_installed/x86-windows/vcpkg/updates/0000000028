@@ -1,0 +1,11 @@
+Package: glad
+Version: 0.1.34
+Port-Version: 3
+Depends: egl-registry, opengl-registry, vcpkg-cmake:x64-windows, vcpkg-cmake-config:x64-windows
+Architecture: x86-windows
+Multi-Arch: same
+Abi: eb08dfb4f9f2533ccd123bb9b10e93cb514e737e6cf44b0f161f4e3a2d054f48
+Description: Multi-Language Vulkan/GL/GLES/EGL/GLX/WGL Loader-Generator based on the official specs.
+Type: Port
+Default-Features: loader
+Status: install ok installed

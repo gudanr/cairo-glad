@@ -139,25 +139,25 @@ D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(2807,18): warning C4244: '=': co
   Generating Code...
 D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(269): warning C4799: function 'to_uint64' has no EMMS instruction
 D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(472): warning C4799: function 'store' has no EMMS instruction
-D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(501): warning C4799: function 'is_opaque' has no EMMS instruction
 D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(490): warning C4799: function 'is_equal' has no EMMS instruction
+D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(501): warning C4799: function 'is_opaque' has no EMMS instruction
 D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(575): warning C4799: function 'expand_4xpacked565' has no EMMS instruction
 D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(479): warning C4799: function 'store8888' has no EMMS instruction
 D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(507): warning C4799: function 'is_zero' has no EMMS instruction
 D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(601): warning C4799: function 'expand_4x565' has no EMMS instruction
 D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(3724): warning C4799: function 'fast_composite_scaled_bilinear_mmx_8888_8888_cover_SRC' has no EMMS instruction
 D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(3635): warning C4799: function 'fast_composite_scaled_nearest_mmx_8888_n_8888_cover_OVER' has no EMMS instruction
-D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(3641): warning C4799: function 'fast_composite_scaled_nearest_mmx_8888_n_8888_none_OVER' has no EMMS instruction
 D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(3644): warning C4799: function 'fast_composite_scaled_nearest_mmx_8888_n_8888_normal_OVER' has no EMMS instruction
+D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(3641): warning C4799: function 'fast_composite_scaled_nearest_mmx_8888_n_8888_none_OVER' has no EMMS instruction
 D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(3638): warning C4799: function 'fast_composite_scaled_nearest_mmx_8888_n_8888_pad_OVER' has no EMMS instruction
 D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(3846): warning C4799: function 'fast_composite_scaled_bilinear_mmx_8888_8_8888_cover_OVER' has no EMMS instruction
 D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(3774): warning C4799: function 'fast_composite_scaled_bilinear_mmx_8888_8888_cover_OVER' has no EMMS instruction
-D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(3578): warning C4799: function 'fast_composite_scaled_nearest_mmx_8888_8888_cover_OVER' has no EMMS instruction
 D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(3778): warning C4799: function 'fast_composite_scaled_bilinear_mmx_8888_8888_pad_OVER' has no EMMS instruction
+D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(3578): warning C4799: function 'fast_composite_scaled_nearest_mmx_8888_8888_cover_OVER' has no EMMS instruction
 D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(3581): warning C4799: function 'fast_composite_scaled_nearest_mmx_8888_8888_none_OVER' has no EMMS instruction
 D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(3587): warning C4799: function 'fast_composite_scaled_nearest_mmx_8888_8888_normal_OVER' has no EMMS instruction
-D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(3584): warning C4799: function 'fast_composite_scaled_nearest_mmx_8888_8888_pad_OVER' has no EMMS instruction
 D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(3782): warning C4799: function 'fast_composite_scaled_bilinear_mmx_8888_8888_none_OVER' has no EMMS instruction
+D:\project2\Cairo-VS\pixman\pixman\pixman-mmx.c(3584): warning C4799: function 'fast_composite_scaled_nearest_mmx_8888_8888_pad_OVER' has no EMMS instruction
   Compiling...
   pixman-noop.c
   pixman-ppc.c

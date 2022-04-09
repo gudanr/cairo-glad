@@ -2,7 +2,7 @@
 <Project>
   <ProjectOutputs>
     <ProjectOutput>
-      <FullPath>D:\project2\Cairo-VS\projects\install\lib\Win32\Release\cairo.dll</FullPath>
+      <FullPath>D:\project2\Cairo-VS\projects\installed\x86-windows\bin\cairo.dll</FullPath>
     </ProjectOutput>
   </ProjectOutputs>
   <ContentFiles />
