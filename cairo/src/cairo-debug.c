@@ -88,15 +88,7 @@ cairo_debug_reset_static_data (void)
 
     _cairo_image_compositor_reset_static_data ();
 
-#if CAIRO_HAS_DRM_SURFACE
-    _cairo_drm_device_reset_static_data ();
-#endif
-
     _cairo_default_context_reset_static_data ();
-
-#if CAIRO_HAS_COGL_SURFACE
-    _cairo_cogl_context_reset_static_data ();
-#endif
 
     CAIRO_MUTEX_FINALIZE ();
 }

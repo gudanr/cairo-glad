@@ -56,9 +56,7 @@
  * enough to just add a new check to the function it complained about.
  */
 
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include <assert.h>
 #include <limits.h>
@@ -67,9 +65,6 @@
 
 #if CAIRO_HAS_GL_SURFACE
 #include <cairo-gl.h>
-#endif
-#if CAIRO_HAS_OS2_SURFACE
-#include <cairo-os2.h>
 #endif
 #if CAIRO_HAS_PDF_SURFACE
 #include <cairo-pdf.h>

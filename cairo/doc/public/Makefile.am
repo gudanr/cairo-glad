@@ -20,7 +20,6 @@ EXTRA_HFILES=$(top_builddir)/src/cairo-supported-features.h
 
 # Headers to ignore
 IGNORE_HFILES= \
-	drm \
 	cairo-features.h \
 	cairo-features-win32.h \
 	$(all_cairo_private) \
@@ -36,7 +35,7 @@ content_files =	\
 	version.xml \
 	$(NULL)
 
-version.xml: $(top_srcdir)/cairo-version.h
+version.xml: $(top_srcdir)/src/cairo-version.h
 	echo $(CAIRO_VERSION_MAJOR).$(CAIRO_VERSION_MINOR).$(CAIRO_VERSION_MICRO) > $@
 
 # Images to copy into HTML directory

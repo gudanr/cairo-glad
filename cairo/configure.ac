@@ -2,7 +2,7 @@ AC_PREREQ([2.63])
 CAIRO_PARSE_VERSION
 AC_INIT([cairo],
 	[cairo_version_major.cairo_version_minor.cairo_version_micro],
-	[https://bugs.freedesktop.org/enter_bug.cgi?product=cairo],
+	[https://gitlab.freedesktop.org/cairo/cairo/-/issues],
 	[cairo],
 	[https://cairographics.org/])
 AC_CONFIG_AUX_DIR(build)
@@ -14,7 +14,7 @@ AC_CONFIG_HEADERS(config.h)
 AC_CHECK_HEADERS([unistd.h sys/ioctl.h])
 AC_C_TYPEOF
 
-AM_INIT_AUTOMAKE([1.11 foreign -Wall no-define no-dist-gzip dist-xz])
+AM_INIT_AUTOMAKE([1.11 foreign -Wall no-define no-dist-gzip dist-xz serial-tests subdir-objects])
 AM_SILENT_RULES([yes])
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR]) dnl Workaround for Automake 1.12
 
@@ -98,7 +98,7 @@ CAIRO_ENABLE_SURFACE_BACKEND(xlib, Xlib, auto, [
 
   if test "$ac_cv_header_sys_ipc_h" = "yes" -a "$ac_cv_header_sys_shm_h" = "yes"; then
       AC_MSG_CHECKING(whether shmctl IPC_RMID allowes subsequent attaches)
-      AC_TRY_RUN([
+      AC_RUN_IFELSE([AC_LANG_SOURCE([[
 		  #include <sys/types.h>
 		  #include <sys/ipc.h>
 		  #include <sys/shm.h>
@@ -117,12 +117,11 @@ CAIRO_ENABLE_SURFACE_BACKEND(xlib, Xlib, auto, [
 		      shmdt (shmaddr);
 		      return 0;
 		  }
-		  ],
-		  AC_DEFINE(IPC_RMID_DEFERRED_RELEASE, 1,
-			    [Define to 1 if shared memory segments are released deferred.])
-		  AC_MSG_RESULT(yes),
-		  AC_MSG_RESULT(no),
-		  AC_MSG_RESULT(assuming no))
+		  ]])],
+		  [
+		  	AC_DEFINE(IPC_RMID_DEFERRED_RELEASE, 1, Define to 1 if shared memory segments are released deferred.)
+		  	AC_MSG_RESULT(yes)],
+		  [AC_MSG_RESULT(no)],[AC_MSG_RESULT(assuming no)])
       fi
 
       AC_CHECK_HEADERS([X11/extensions/XShm.h X11/extensions/shmproto.h X11/extensions/shmstr.h], [], [],
@@ -136,6 +135,7 @@ CAIRO_ENABLE_SURFACE_BACKEND(xlib_xrender, Xlib Xrender, auto, [
   else
     dnl Check for Xrender header files if the Xrender package is not installed:
     xlib_xrender_BASE=cairo-xlib
+    dnl Keep in sync with meson.build!
     xlib_xrender_REQUIRES="xrender >= 0.6"
     PKG_CHECK_MODULES(xlib_xrender, $xlib_xrender_REQUIRES, ,
 		      [xlib_xrender_REQUIRES=""
@@ -162,6 +162,7 @@ CAIRO_ENABLE_SURFACE_BACKEND(xlib_xrender, Xlib Xrender, auto, [
 dnl ===========================================================================
 
 CAIRO_ENABLE_SURFACE_BACKEND(xcb, XCB, auto, [
+  dnl Keep in sync with meson.build!
   xcb_REQUIRES="xcb >= 1.6 xcb-render >= 1.6"
   PKG_CHECK_MODULES(xcb, $xcb_REQUIRES, ,
 		    [use_xcb="no (requires $xcb_REQUIRES https://xcb.freedesktop.org)"])
@@ -185,17 +186,6 @@ CAIRO_ENABLE_FUNCTIONS(xcb_shm, XCB/SHM, auto, [
   else
     use_xcb_shm="no (requires --enable-xcb)"
   fi
-])
-
-dnl ===========================================================================
-
-CAIRO_ENABLE_SURFACE_BACKEND(qt, Qt, no, [
-  qt_REQUIRES="QtGui >= 4.4.0"
-  PKG_CHECK_MODULES(qt, $qt_REQUIRES, ,
-		    [qt_REQUIRES=""
-		     use_qt="no (requires Qt4 development libraries)"
-		     ])
-  qt_NONPKGCONFIG_LIBS="-lstdc++"
 ])
 
 dnl ===========================================================================
@@ -246,60 +236,6 @@ if test "x$use_win32" = "xyes"; then
 fi
 
 AM_CONDITIONAL(CAIRO_CAN_TEST_WIN32_PRINTING_SURFACE, test "x$test_win32_printing" = "xyes")
-
-dnl ===========================================================================
-
-CAIRO_ENABLE_SURFACE_BACKEND(os2, OS/2, no, [
-  case "$host" in
-    *-*-os2*)
-      :
-      ;;
-    *)
-      use_os2="no (requires an OS/2 platform)"
-      ;;
-  esac
-])
-
-dnl ===========================================================================
-
-CAIRO_ENABLE_SURFACE_BACKEND(beos, BeOS/Zeta, no, [
-  case "$host" in
-    *-*-beos)
-      beos_LIBS=""
-      dnl Add libbe and libzeta if available
-      AC_CHECK_LIB(be,main,beos_LIBS="$beos_LIBS -lbe")
-      AC_CHECK_LIB(zeta,main,beos_LIBS="$beos_LIBS -lzeta")
-      ;;
-    *)
-      use_beos="no (requires a BeOS platform)"
-      ;;
-  esac
-])
-
-dnl ===========================================================================
-
-CAIRO_ENABLE_SURFACE_BACKEND(drm, DRM, no, [
-  drm_REQUIRES="libudev >= 136, libdrm >= 2.4"
-  PKG_CHECK_MODULES(drm, $drm_REQUIRES, ,
-   [use_drm="no (requires $drm_REQUIRES, udev is available from git://git.kernel.org/pub/scm/linux/hotplug/udev.git)"])
-])
-
-CAIRO_ENABLE_SURFACE_BACKEND(gallium, Gallium3D, no, [
-  if test "x$use_drm" = "xyes"; then
-      AC_ARG_WITH([gallium],
-		  [AS_HELP_STRING([--with-gallium=/path/to/mesa],
-				  [directory to find gallium enabled mesa])],
-		  [mesa_DIR="$withval"],
-		  [mesa_DIR="`pwd`/../mesa"])
-      gallium_DIR="$mesa_DIR/src/gallium"
-      gallium_NONPKGCONFIG_CFLAGS="-I$mesa_DIR/include -I$mesa_DIR/src/mesa -I$gallium_DIR/include -I$gallium_DIR/auxiliary"
-      gallium_NONPKGCONFIG_LIBS="-lGL"
-      AC_SUBST(mesa_DIR)
-      AC_SUBST(gallium_DIR)
-  else
-    use_gallium="no (requires --enable-drm)"
-  fi
-])
 
 dnl ===========================================================================
 
@@ -395,31 +331,6 @@ CAIRO_ENABLE_SURFACE_BACKEND(glesv3, OpenGLESv3, no, [
 ])
 
 dnl ===========================================================================
-CAIRO_ENABLE_SURFACE_BACKEND(cogl, Cogl, no, [
-  cogl_REQUIRES="cogl-2.0-experimental"
-  PKG_CHECK_MODULES(cogl, $cogl_REQUIRES,, [use_cogl="no"])
-])
-
-dnl ===========================================================================
-
-CAIRO_ENABLE_SURFACE_BACKEND(directfb, directfb, no, [
-  directfb_REQUIRES=directfb
-  PKG_CHECK_MODULES(directfb, $directfb_REQUIRES, ,
-		    [use_directfb="no (requires $directfb_REQUIRES http://www.directfb.org)"])
-])
-
-dnl ===========================================================================
-
-CAIRO_ENABLE_SURFACE_BACKEND(vg, OpenVG, no, [
-  dnl There is no pkgconfig for OpenVG; lets do a header check
-  AC_CHECK_HEADER(VG/openvg.h,, [use_vg="no (OpenVG headers not found)"])
-  if test "x$use_vg" = "xyes"; then
-      vg_NONPKGCONFIG_CFLAGS=
-      vg_NONPKGCONFIG_LIBS="-lOpenVG"
-      need_egl_functions=yes
-      need_glx_functions=yes
-  fi
-])
 
 CAIRO_ENABLE_FUNCTIONS(egl, EGL, auto, [
   if test "x$need_egl_functions" = "xyes"; then
@@ -504,6 +415,7 @@ dnl ===========================================================================
 # release number - for information only
 FREETYPE_MIN_RELEASE=2.1.9
 # libtool-specific version - this is what is checked
+# Keep in sync with meson.build!
 FREETYPE_MIN_VERSION=9.7.3
 
 CAIRO_ENABLE_FONT_BACKEND(ft, FreeType, auto, [
@@ -538,6 +450,7 @@ CAIRO_ENABLE_FONT_BACKEND(ft, FreeType, auto, [
   ft_LIBS="$FREETYPE_LIBS"
 ])
 
+# Keep in sync with meson.build!
 FONTCONFIG_MIN_VERSION=2.2.95
 CAIRO_ENABLE_FONT_BACKEND(fc, Fontconfig, auto, [
   use_fc=$use_ft
@@ -556,7 +469,7 @@ if test "x$use_ft" = "xyes"; then
   LIBS="$LIBS $ft_LIBS"
   CFLAGS="$CFLAGS $ft_CFLAGS"
 
-  AC_CHECK_FUNCS(FT_Get_X11_Font_Format FT_GlyphSlot_Embolden FT_GlyphSlot_Oblique FT_Load_Sfnt_Table FT_Library_SetLcdFilter FT_Get_Var_Design_Coordinates FT_Done_MM_Var)
+  AC_CHECK_FUNCS(FT_Get_X11_Font_Format FT_GlyphSlot_Embolden FT_GlyphSlot_Oblique FT_Load_Sfnt_Table FT_Library_SetLcdFilter FT_Get_Var_Design_Coordinates FT_Done_MM_Var FT_Palette_Set_Foreground_Color)
 
   AC_MSG_CHECKING(for FT_HAS_COLOR)
   AC_LINK_IFELSE([AC_LANG_PROGRAM([
@@ -587,6 +500,7 @@ CAIRO_ENABLE_SURFACE_BACKEND(ps, PostScript, yes, [
 
 dnl ===========================================================================
 
+# Keep in sync with meson.build!
 SPECTRE_VERSION_REQUIRED=0.2.0
 test_ps=no
 any2ppm_ps=no
@@ -625,6 +539,7 @@ CAIRO_ENABLE_SURFACE_BACKEND(pdf, PDF, yes, [
 dnl ===========================================================================
 
 # poppler-0.17.4 fixes text-pattern and text-transform
+# Keep in sync with meson.build!
 POPPLER_VERSION_REQUIRED=0.17.4
 test_pdf=no
 any2ppm_pdf=no
@@ -656,6 +571,7 @@ CAIRO_ENABLE_SURFACE_BACKEND(svg, SVG, yes, [
   fi
 ])
 
+dnl Keep in sync with meson.build!
 LIBRSVG_VERSION_REQUIRED=2.35.0
 test_svg=no
 any2ppm_svg=no
@@ -685,6 +601,7 @@ CAIRO_ENABLE(test_surfaces, test surfaces, no)
 dnl ===========================================================================
 
 CAIRO_ENABLE_SURFACE_BACKEND(image, image, always, [
+  dnl Keep in sync with meson.build!
   pixman_REQUIRES="pixman-1 >= 0.36.0"
   PKG_CHECK_MODULES(pixman, $pixman_REQUIRES, ,
     [use_image="no (requires $pixman_REQUIRES https://cairographics.org/releases/)"])
@@ -705,8 +622,12 @@ CAIRO_ENABLE_SURFACE_BACKEND(recording, recording, always)
 CAIRO_ENABLE_SURFACE_BACKEND(observer, observer, always)
 CAIRO_ENABLE_SURFACE_BACKEND(tee, tee, no)
 CAIRO_ENABLE_SURFACE_BACKEND(xml, xml, no, [
-    use_xml=$have_libz
-    xml_NONPKGCONFIG_LIBS=-lz
+    if test "x$use_png" != "xyes"; then
+        use_xml="no (requires --enable-png)"
+    else
+        use_xml=$have_libz
+        xml_NONPKGCONFIG_LIBS=-lz
+    fi
 ])
 
 dnl ===========================================================================
@@ -733,6 +654,7 @@ dnl ===========================================================================
 dnl Build gobject integration library
 
 CAIRO_ENABLE_FUNCTIONS(gobject, gobject, auto, [
+  dnl Keep in sync with meson.build!
   gobject_REQUIRES="gobject-2.0 glib-2.0 >= 2.14"
   PKG_CHECK_MODULES(GOBJECT, $gobject_REQUIRES, ,
     [use_gobject="no (requires $gobject_REQUIRES https://download.gnome.org/pub/GNOME/sources/glib/)"])
@@ -812,7 +734,13 @@ CAIRO_ENABLE(interpreter, cairo-script-interpreter, yes, [
 AC_CHECK_LIB(bfd, bfd_openr,
 	 [AC_CHECK_HEADER(bfd.h, [have_bfd=yes],
 	 [have_bfd=no])], [have_bfd=no])
-AC_CHECK_HEADER(libiberty.h,, [have_bfd=no])
+dnl bfd_section_flags is an inline func so we don't bother with linking the lib in
+AC_LINK_IFELSE([AC_LANG_PROGRAM([
+  #include <bfd.h>
+  asection *s;
+],[
+  return bfd_section_flags(s) == 0;
+])],[],[have_bfd=no])
 if test "x$have_bfd" = "xyes"; then
     AC_DEFINE([HAVE_BFD], [1], [Define to 1 if you have the binutils development files installed])
     BFD_LIBS=-lbfd
@@ -828,7 +756,7 @@ CAIRO_ENABLE(symbol_lookup, symbol-lookup, auto, [
 PKG_CHECK_MODULES(glib, glib-2.0, have_glib=yes, have_glib=no)
 AC_SUBST(glib_CFLAGS)
 AC_SUBST(glib_LIBS)
-AM_CONDITIONAL(BUILD_SPHINX, test "x$have_glib" = "xyes" -a "x$have_windows" = "xno")
+AM_CONDITIONAL(BUILD_SPHINX, test "x$have_glib" = "xyes" -a "x$have_windows" = "xno" -a "x$use_png" = "xyes")
 
 save_LIBS="$LIBS"
 AC_CHECK_LIB(rt, shm_open, shm_LIBS="-lrt")
@@ -857,15 +785,6 @@ if test "x$disable_some_floating_point" = "xyes"; then
             [Define to 1 to disable certain code paths that rely heavily on
              double precision floating-point calculation])
 fi
-
-dnl ===========================================================================
-
-dnl Extra stuff we need to do when building C++ code
-need_cxx="no"
-AS_IF([test "x$use_qt" = "xyes"], [need_cxx="yes"])
-AS_IF([test "x$use_beos" = "xyes"], [need_cxx="yes"])
-
-AM_CONDITIONAL(BUILD_CXX, test "x$need_cxx" = "xyes")
 
 dnl ===========================================================================
 

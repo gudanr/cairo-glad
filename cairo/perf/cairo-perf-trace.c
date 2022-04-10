@@ -28,9 +28,7 @@
  *	    Chris Wilson <chris@chris-wilson.co.uk>
  */
 
-#define _GNU_SOURCE 1	/* for sched_getaffinity() and getline() */
-
-#include "../cairo-version.h" /* for the real version */
+#include "config.h"
 
 #include "cairo-missing.h"
 #include "cairo-perf.h"

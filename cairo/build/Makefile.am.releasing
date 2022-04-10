@@ -28,7 +28,7 @@ snapshot-dist: dist
 	  sed -e 1h -e 1s/./=/g -e 1p -e 1x -e '$$p' -e '$$x'
 
 RELEASE_OR_SNAPSHOT = $$(if test "x$(CAIRO_VERSION_MINOR)" = "x$$(echo "$(CAIRO_VERSION_MINOR)/2*2" | bc)" ; then echo release; else echo snapshot; fi)
-RELEASE_UPLOAD_HOST =   cairographics.org
+RELEASE_UPLOAD_HOST =   cairo.freedesktop.org
 RELEASE_UPLOAD_BASE =	/srv/cairo.freedesktop.org/www
 RELEASE_UPLOAD_DIR =	$(RELEASE_UPLOAD_BASE)/$(RELEASE_OR_SNAPSHOT)s
 RELEASE_URL_BASE = 	https://cairographics.org/$(RELEASE_OR_SNAPSHOT)s
@@ -71,11 +71,11 @@ release-verify-even-micro:
 
 release-verify-newer:
 	@echo -n "Checking that no $(VERSION) release already exists..."
-	@ssh $(RELEASE_UPLOAD_HOST) test ! -e $(RELEASE_UPLOAD_DIR)/$(tar_file) \
-		|| (echo "Ouch." && echo "Found: $(RELEASE_UPLOAD_HOST):$(RELEASE_UPLOAD_DIR)/$(tar_file)" \
+	@if curl --head --fail --silent "$(RELEASE_URL_BASE)/LATEST-$(PACKAGE)-$(VERSION)" >/dev/null; then \
+		(echo "Ouch." && echo "Found: $(RELEASE_URL_BASE)/LATEST-$(PACKAGE)-$(VERSION)" \
 		&& echo "Are you sure you have an updated checkout?" \
 		&& echo "This should never happen." \
-		&& false)
+		&& false); else :; fi
 	@echo "Good."
 
 release-remove-old:

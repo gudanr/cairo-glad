@@ -146,6 +146,16 @@ struct _cairo_scaled_glyph {
     const void		   *dev_private_key;
     void		   *dev_private;
     cairo_list_t            dev_privates;
+
+    cairo_color_t           foreground_color;   /* only used for color glyphs */
+    /* TRUE if the color_surface required the foreground_color to render. */
+    unsigned                uses_foreground_color : 1;
+
+    /* TRUE if this is not a color glyph, FALSE if is a color glyph or unknown.  */
+    unsigned                not_color_glyph : 1;
+
+    /* TRUE if recording_surface is a color glyph */
+    unsigned                recording_is_color : 1;
 };
 
 struct _cairo_scaled_glyph_private {

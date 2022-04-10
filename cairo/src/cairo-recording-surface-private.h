@@ -120,10 +120,6 @@ typedef struct _cairo_command_tag {
     cairo_bool_t                 begin;
     char                        *tag_name;
     char                        *attributes;
-    cairo_pattern_union_t	 source;
-    cairo_stroke_style_t	 style;
-    cairo_matrix_t		 ctm;
-    cairo_matrix_t		 ctm_inverse;
 } cairo_command_tag_t;
 
 typedef union _cairo_command {
@@ -175,6 +171,11 @@ _cairo_recording_surface_replay_one (cairo_recording_surface_t	*surface,
 cairo_private cairo_status_t
 _cairo_recording_surface_replay (cairo_surface_t *surface,
 				 cairo_surface_t *target);
+
+cairo_private cairo_status_t
+_cairo_recording_surface_replay_with_foreground_color (cairo_surface_t *surface,
+                                                       cairo_surface_t *target,
+                                                       const cairo_color_t *color);
 
 cairo_private cairo_status_t
 _cairo_recording_surface_replay_with_clip (cairo_surface_t *surface,

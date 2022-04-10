@@ -102,7 +102,11 @@
 #endif
 
 #ifndef HAVE_CTIME_R
-#define ctime_r(T, BUF) ctime (T)
+static char *ctime_r(const time_t *timep, char *buf)
+{
+    (void)buf;
+    return ctime(timep);
+}
 #endif
 
 /**
@@ -312,17 +316,21 @@ _cairo_ps_surface_emit_header (cairo_ps_surface_t *surface)
 
     _cairo_output_stream_printf (surface->final_stream,
 				 "%%!PS-Adobe-3.0%s\n"
-				 "%%%%Creator: cairo %s (https://cairographics.org)\n"
-				 "%%%%CreationDate: %s"
-				 "%%%%Pages: %d\n",
+				 "%%%%Creator: cairo %s (https://cairographics.org)\n",
 				 eps_header,
-				 cairo_version_string (),
-				 ctime_r (&now, ctime_buf),
-				 surface->num_pages);
+				 cairo_version_string ());
+
+    if (!getenv ("CAIRO_DEBUG_PS_NO_DATE")) {
+	_cairo_output_stream_printf (surface->final_stream,
+				     "%%%%CreationDate: %s",
+				     ctime_r (&now, ctime_buf));
+    }
 
     _cairo_output_stream_printf (surface->final_stream,
+				 "%%%%Pages: %d\n"
 				 "%%%%DocumentData: Clean7Bit\n"
 				 "%%%%LanguageLevel: %d\n",
+				 surface->num_pages,
 				 level);
 
     if (!cairo_list_is_empty (&surface->document_media)) {
@@ -497,17 +505,6 @@ _cairo_ps_surface_emit_header (cairo_ps_surface_t *surface)
 
     _cairo_output_stream_printf (surface->final_stream,
 				 "%%%%EndProlog\n");
-
-    num_comments = _cairo_array_num_elements (&surface->dsc_setup_comments);
-    if (num_comments) {
-	comments = _cairo_array_index (&surface->dsc_setup_comments, 0);
-	for (i = 0; i < num_comments; i++) {
-	    _cairo_output_stream_printf (surface->final_stream,
-					 "%s\n", comments[i]);
-	    free (comments[i]);
-	    comments[i] = NULL;
-	}
-    }
 }
 
 static cairo_status_t
@@ -1583,7 +1580,7 @@ cairo_ps_surface_set_size (cairo_surface_t	*surface,
  * beyond these two conditions, this function will not enforce
  * conformance of the comment with any particular specification.
  *
- * The comment string should not have a trailing newline.
+ * The comment string must not contain any newline characters.
  *
  * The DSC specifies different sections in which particular comments
  * can appear. This function provides for comments to be emitted
@@ -1763,6 +1760,17 @@ _cairo_ps_surface_finish (void *abstract_surface)
 
     _cairo_output_stream_printf (surface->final_stream,
 				 "%%%%BeginSetup\n");
+
+    num_comments = _cairo_array_num_elements (&surface->dsc_setup_comments);
+    if (num_comments) {
+	comments = _cairo_array_index (&surface->dsc_setup_comments, 0);
+	for (i = 0; i < num_comments; i++) {
+	    _cairo_output_stream_printf (surface->final_stream,
+					 "%s\n", comments[i]);
+	    free (comments[i]);
+	    comments[i] = NULL;
+	}
+    }
 
     status = _cairo_ps_surface_emit_font_subsets (surface);
     if (unlikely (status))
@@ -2603,7 +2611,6 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t          *surface,
 	surf = _cairo_image_surface_create_with_content (image->base.content,
 							 image->width,
 							 image->height);
-	image = (cairo_image_surface_t *) surf;
 	if (surf->status) {
 	    status = surf->status;
 	    goto bail0;
@@ -2614,6 +2621,7 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t          *surface,
 				       CAIRO_OPERATOR_SOURCE, &pattern.base,
 				       NULL);
         _cairo_pattern_fini (&pattern.base);
+	image = (cairo_image_surface_t *) surf;
         if (unlikely (status))
             goto bail0;
     }
@@ -4405,7 +4413,7 @@ _cairo_ps_surface_emit_pattern_stops (cairo_ps_surface_t       *surface,
 	/* no need for stitched function */
 	_cairo_ps_surface_emit_linear_colorgradient (surface, &stops[0], &stops[1]);
     } else {
-	/* multiple stops: stitch. XXX possible optimization: regulary spaced
+	/* multiple stops: stitch. XXX possible optimization: regularly spaced
 	 * stops do not require stitching. XXX */
 	_cairo_ps_surface_emit_stitched_colorgradient (surface, n_stops, stops);
     }

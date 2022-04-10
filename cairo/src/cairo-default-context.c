@@ -325,8 +325,11 @@ _cairo_default_context_set_source_surface (void *abstract_cr,
     _cairo_default_context_set_source (cr, (cairo_pattern_t *) &_cairo_pattern_black);
 
     pattern = cairo_pattern_create_for_surface (surface);
-    if (unlikely (pattern->status))
-	return pattern->status;
+    if (unlikely (pattern->status)) {
+        status = pattern->status;
+        cairo_pattern_destroy (pattern);
+        return status;
+    }
 
     cairo_matrix_init_translate (&matrix, -x, -y);
     cairo_pattern_set_matrix (pattern, &matrix);
@@ -401,6 +404,14 @@ _cairo_default_context_set_line_width (void *abstract_cr,
 }
 
 static cairo_status_t
+_cairo_default_context_set_hairline (void *abstract_cr, cairo_bool_t set_hairline)
+{
+    cairo_default_context_t *cr = abstract_cr;
+
+    return _cairo_gstate_set_hairline (cr->gstate, set_hairline);
+}
+
+static cairo_status_t
 _cairo_default_context_set_line_cap (void *abstract_cr,
 				     cairo_line_cap_t line_cap)
 {
@@ -472,6 +483,14 @@ _cairo_default_context_get_line_width (void *abstract_cr)
     cairo_default_context_t *cr = abstract_cr;
 
     return _cairo_gstate_get_line_width (cr->gstate);
+}
+
+static cairo_bool_t
+_cairo_default_context_get_hairline (void *abstract_cr)
+{
+    cairo_default_context_t *cr = abstract_cr;
+
+    return _cairo_gstate_get_hairline (cr->gstate);
 }
 
 static cairo_line_cap_t
@@ -1362,6 +1381,7 @@ static const cairo_backend_t _cairo_default_context_backend = {
     _cairo_default_context_set_line_cap,
     _cairo_default_context_set_line_join,
     _cairo_default_context_set_line_width,
+    _cairo_default_context_set_hairline,
     _cairo_default_context_set_miter_limit,
     _cairo_default_context_set_opacity,
     _cairo_default_context_set_operator,
@@ -1372,6 +1392,7 @@ static const cairo_backend_t _cairo_default_context_backend = {
     _cairo_default_context_get_line_cap,
     _cairo_default_context_get_line_join,
     _cairo_default_context_get_line_width,
+    _cairo_default_context_get_hairline,
     _cairo_default_context_get_miter_limit,
     _cairo_default_context_get_opacity,
     _cairo_default_context_get_operator,

@@ -255,12 +255,12 @@ _cairo_sub_font_init_key (cairo_sub_font_t	*sub_font,
 {
     if (sub_font->is_scaled)
     {
-        sub_font->base.hash = (unsigned long) scaled_font;
+        sub_font->base.hash = (uintptr_t) scaled_font;
         sub_font->scaled_font = scaled_font;
     }
     else
     {
-        sub_font->base.hash = (unsigned long) scaled_font->font_face;
+        sub_font->base.hash = (uintptr_t) scaled_font->font_face;
         sub_font->scaled_font = scaled_font;
     }
 }
@@ -513,6 +513,7 @@ _cairo_sub_font_add_glyph (cairo_sub_font_t	   *sub_font,
     status = _cairo_scaled_glyph_lookup (sub_font->scaled_font,
 					 scaled_font_glyph_index,
 					 CAIRO_SCALED_GLYPH_INFO_METRICS,
+					 NULL, /* foreground color */
 					 &scaled_glyph);
     assert (status != CAIRO_INT_STATUS_UNSUPPORTED);
     if (unlikely (status)) {
@@ -890,6 +891,7 @@ _cairo_scaled_font_subsets_map_glyph (cairo_scaled_font_subsets_t	*subsets,
 	status = _cairo_scaled_glyph_lookup (scaled_font,
 					     scaled_font_glyph_index,
 					     CAIRO_SCALED_GLYPH_INFO_PATH,
+                                             NULL, /* foreground color */
 					     &scaled_glyph);
 	_cairo_scaled_font_thaw_cache (scaled_font);
     }
@@ -1140,7 +1142,7 @@ dump_glyph (void *entry, void *closure)
     printf("      utf8: '%s'\n", buf);
     printf("      utf8 (hex):");
     for (i = 0; i < glyph->utf8_len; i++)
-	printf(" 0x%02x", glyph->utf8[0]);
+	printf(" 0x%02x", glyph->utf8[i]);
     printf("\n\n");
 }
 

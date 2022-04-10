@@ -1046,8 +1046,8 @@ _cairo_surface_finish (cairo_surface_t *surface)
  * external resources.  For example, for the Xlib backend it means
  * that cairo will no longer access the drawable, which can be freed.
  * After calling cairo_surface_finish() the only valid operations on a
- * surface are getting and setting user, referencing and
- * destroying, and flushing and finishing it.
+ * surface are checking status, getting and setting user, referencing
+ * and destroying, and flushing and finishing it.
  * Further drawing to the surface will not affect the
  * surface but will instead trigger a %CAIRO_STATUS_SURFACE_FINISHED
  * error.
@@ -1949,7 +1949,7 @@ slim_hidden_def (cairo_surface_get_device_offset);
  * there is currently no way to have more than one fallback resolution
  * in effect on a single page.
  *
- * The default fallback resoultion is 300 pixels per inch in both
+ * The default fallback resolution is 300 pixels per inch in both
  * dimensions.
  *
  * Since: 1.2
@@ -2174,6 +2174,7 @@ _cairo_surface_paint (cairo_surface_t		*surface,
 		      const cairo_clip_t	*clip)
 {
     cairo_int_status_t status;
+    cairo_bool_t is_clear;
 
     TRACE ((stderr, "%s\n", __FUNCTION__));
     if (unlikely (surface->status))
@@ -2196,8 +2197,9 @@ _cairo_surface_paint (cairo_surface_t		*surface,
 	return status;
 
     status = surface->backend->paint (surface, op, source, clip);
-    if (status != CAIRO_INT_STATUS_NOTHING_TO_DO) {
-	surface->is_clear = op == CAIRO_OPERATOR_CLEAR && clip == NULL;
+    is_clear = op == CAIRO_OPERATOR_CLEAR && clip == NULL;
+    if (status != CAIRO_INT_STATUS_NOTHING_TO_DO || is_clear) {
+	surface->is_clear = is_clear;
 	surface->serial++;
     }
 
@@ -2600,6 +2602,7 @@ slim_hidden_def (cairo_surface_has_show_text_glyphs);
 
 static inline cairo_int_status_t
 ensure_scaled_glyph (cairo_scaled_font_t   *scaled_font,
+		     cairo_color_t         *foreground_color,
                      cairo_scaled_glyph_t **glyph_cache,
                      cairo_glyph_t         *glyph,
                      cairo_scaled_glyph_t **scaled_glyph)
@@ -2612,8 +2615,17 @@ ensure_scaled_glyph (cairo_scaled_font_t   *scaled_font,
     if (*scaled_glyph == NULL || _cairo_scaled_glyph_index (*scaled_glyph) != glyph->index) {
         status = _cairo_scaled_glyph_lookup (scaled_font,
                                              glyph->index,
-                                             CAIRO_SCALED_GLYPH_INFO_SURFACE,
+                                             CAIRO_SCALED_GLYPH_INFO_COLOR_SURFACE,
+                                             foreground_color,
                                              scaled_glyph);
+        if (status == CAIRO_INT_STATUS_UNSUPPORTED) {
+            /* If the color surface not available, ensure scaled_glyph is not NULL. */
+            status = _cairo_scaled_glyph_lookup (scaled_font,
+                                                 glyph->index,
+                                                 CAIRO_SCALED_GLYPH_INFO_SURFACE,
+                                                 NULL, /* foreground color */
+                                                 scaled_glyph);
+        }
         if (unlikely (status))
             status = _cairo_scaled_font_set_error (scaled_font, status);
 
@@ -2635,10 +2647,15 @@ composite_one_color_glyph (cairo_surface_t       *surface,
     cairo_image_surface_t *glyph_surface;
     cairo_pattern_t *pattern;
     cairo_matrix_t matrix;
+    int has_color;
 
     status = CAIRO_INT_STATUS_SUCCESS;
 
-    glyph_surface = scaled_glyph->color_surface;
+    has_color = scaled_glyph->has_info & CAIRO_SCALED_GLYPH_INFO_COLOR_SURFACE;
+    if (has_color)
+        glyph_surface = scaled_glyph->color_surface;
+    else
+        glyph_surface = scaled_glyph->surface;
 
     if (glyph_surface->width && glyph_surface->height) {
         int x, y;
@@ -2650,7 +2667,7 @@ composite_one_color_glyph (cairo_surface_t       *surface,
         pattern = cairo_pattern_create_for_surface ((cairo_surface_t *)glyph_surface);
         cairo_matrix_init_translate (&matrix, - x, - y);
         cairo_pattern_set_matrix (pattern, &matrix);
-	if (op == CAIRO_OPERATOR_SOURCE || op == CAIRO_OPERATOR_CLEAR)
+	if (op == CAIRO_OPERATOR_SOURCE || op == CAIRO_OPERATOR_CLEAR || !has_color)
 	  status = surface->backend->mask (surface, op, pattern, pattern, clip);
 	else
 	  status = surface->backend->paint (surface, op, pattern, clip);
@@ -2684,6 +2701,10 @@ composite_color_glyphs (cairo_surface_t             *surface,
     int byte_pos = 0;
     int gp;
     cairo_scaled_glyph_t *glyph_cache[GLYPH_CACHE_SIZE];
+    cairo_color_t *foreground_color = NULL;
+
+    if (source->type == CAIRO_PATTERN_TYPE_SOLID)
+	foreground_color = &((cairo_solid_pattern_t *) source)->color;
 
     memset (glyph_cache, 0, sizeof (glyph_cache));
 
@@ -2697,7 +2718,7 @@ composite_color_glyphs (cairo_surface_t             *surface,
             glyph_pos = *num_glyphs - 1;
 
         for (i = 0; i < *num_clusters; i++) {
-            cairo_bool_t skip_cluster = FALSE;
+            cairo_bool_t skip_cluster = TRUE;
 
             for (j = 0; j < clusters[i].num_glyphs; j++) {
                 if (cluster_flags & CAIRO_TEXT_CLUSTER_FLAG_BACKWARD)
@@ -2705,13 +2726,13 @@ composite_color_glyphs (cairo_surface_t             *surface,
                 else
                     gp = glyph_pos + j;
 
-                status = ensure_scaled_glyph (scaled_font, glyph_cache,
+                status = ensure_scaled_glyph (scaled_font, foreground_color, glyph_cache,
                                               &glyphs[gp], &scaled_glyph);
                 if (unlikely (status))
                     goto UNLOCK;
 
-                if ((scaled_glyph->has_info & CAIRO_SCALED_GLYPH_INFO_COLOR_SURFACE) == 0) {
-                    skip_cluster = TRUE;
+                if ((scaled_glyph->has_info & CAIRO_SCALED_GLYPH_INFO_COLOR_SURFACE) != 0) {
+                    skip_cluster = FALSE;
                     break;
                 }
             }
@@ -2736,7 +2757,7 @@ composite_color_glyphs (cairo_surface_t             *surface,
                 else
                     gp = glyph_pos + j;
 
-                status = ensure_scaled_glyph (scaled_font, glyph_cache,
+                status = ensure_scaled_glyph (scaled_font, foreground_color, glyph_cache,
                                               &glyphs[gp], &scaled_glyph);
                 if (unlikely (status))
                     goto UNLOCK;
@@ -2755,8 +2776,10 @@ composite_color_glyphs (cairo_surface_t             *surface,
             byte_pos += clusters[i].num_bytes;
         }
 
-        if (cluster_flags & CAIRO_TEXT_CLUSTER_FLAG_BACKWARD)
+        if (cluster_flags & CAIRO_TEXT_CLUSTER_FLAG_BACKWARD) {
             memmove (utf8, utf8 + *utf8_len - remaining_bytes, remaining_bytes);
+            memmove (glyphs, glyphs + (*num_glyphs - remaining_glyphs), sizeof (cairo_glyph_t) * remaining_glyphs);
+        }
 
         *utf8_len = remaining_bytes;
         *num_glyphs = remaining_glyphs;
@@ -2765,7 +2788,7 @@ composite_color_glyphs (cairo_surface_t             *surface,
     } else {
 
        for (glyph_pos = 0; glyph_pos < *num_glyphs; glyph_pos++) {
-           status = ensure_scaled_glyph (scaled_font, glyph_cache,
+           status = ensure_scaled_glyph (scaled_font, foreground_color, glyph_cache,
                                          &glyphs[glyph_pos], &scaled_glyph);
            if (unlikely (status))
                goto UNLOCK;
@@ -2820,6 +2843,7 @@ _cairo_surface_show_text_glyphs (cairo_surface_t	    *surface,
 				 const cairo_clip_t		*clip)
 {
     cairo_int_status_t status;
+    char *utf8_copy = NULL;
 
     TRACE ((stderr, "%s\n", __FUNCTION__));
     if (unlikely (surface->status))
@@ -2844,9 +2868,11 @@ _cairo_surface_show_text_glyphs (cairo_surface_t	    *surface,
     if (unlikely (status))
 	return status;
 
-    status = CAIRO_INT_STATUS_UNSUPPORTED;
-
     if (_cairo_scaled_font_has_color_glyphs (scaled_font)) {
+        utf8_copy = malloc (sizeof (char) * utf8_len);
+        memcpy (utf8_copy, utf8, sizeof (char) * utf8_len);
+        utf8 = utf8_copy;
+
         status = composite_color_glyphs (surface, op,
                                          source,
                                          (char *)utf8, &utf8_len,
@@ -2861,10 +2887,13 @@ _cairo_surface_show_text_glyphs (cairo_surface_t	    *surface,
         if (num_glyphs == 0)
             goto DONE;
     }
+    else
+      utf8_copy = NULL;
 
     /* The logic here is duplicated in _cairo_analysis_surface show_glyphs and
      * show_text_glyphs.  Keep in synch. */
     if (clusters) {
+        status = CAIRO_INT_STATUS_UNSUPPORTED;
 	/* A real show_text_glyphs call.  Try show_text_glyphs backend
 	 * method first */
 	if (surface->backend->show_text_glyphs != NULL) {
@@ -2918,6 +2947,9 @@ DONE:
 	surface->serial++;
     }
 
+    if (utf8_copy)
+        free (utf8_copy);
+
     return _cairo_surface_set_error (surface, status);
 }
 
@@ -2925,12 +2957,7 @@ cairo_status_t
 _cairo_surface_tag (cairo_surface_t	        *surface,
 		    cairo_bool_t                 begin,
 		    const char                  *tag_name,
-		    const char                  *attributes,
-		    const cairo_pattern_t	*source,
-		    const cairo_stroke_style_t	*stroke_style,
-		    const cairo_matrix_t	*ctm,
-		    const cairo_matrix_t	*ctm_inverse,
-		    const cairo_clip_t	        *clip)
+		    const char                  *attributes)
 {
     cairo_int_status_t status;
 
@@ -2943,15 +2970,8 @@ _cairo_surface_tag (cairo_surface_t	        *surface,
     if (surface->backend->tag == NULL)
 	return CAIRO_STATUS_SUCCESS;
 
-    if (begin) {
-	status = _pattern_has_error (source);
-	if (unlikely (status))
-	    return status;
-    }
-
-    status = surface->backend->tag (surface, begin, tag_name, attributes,
-				    source, stroke_style,
-				    ctm, ctm_inverse, clip);
+    status = surface->backend->tag (surface, begin, tag_name, attributes);
+    surface->is_clear = FALSE;
 
     return _cairo_surface_set_error (surface, status);
 }
@@ -3053,6 +3073,7 @@ _cairo_surface_create_in_error (cairo_status_t status)
     case CAIRO_STATUS_PNG_ERROR:
     case CAIRO_STATUS_FREETYPE_ERROR:
     case CAIRO_STATUS_WIN32_GDI_ERROR:
+    case CAIRO_INT_STATUS_DWRITE_ERROR:
     case CAIRO_STATUS_TAG_ERROR:
     default:
 	_cairo_error_throw (CAIRO_STATUS_NO_MEMORY);

@@ -42,6 +42,7 @@
 #include "cairo-error-private.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <locale.h>
 #ifdef HAVE_XLOCALE_H
@@ -173,6 +174,8 @@ cairo_status_to_string (cairo_status_t status)
 	return "error occurred in the Windows Graphics Device Interface";
     case CAIRO_STATUS_TAG_ERROR:
 	return "invalid tag name, attributes, or nesting";
+    case CAIRO_STATUS_DWRITE_ERROR:
+	return "Window Direct Write error";
     default:
     case CAIRO_STATUS_LAST_STATUS:
 	return "<unknown error status>";
@@ -401,10 +404,10 @@ _cairo_operator_bounded_by_mask (cairo_operator_t op)
     case CAIRO_OPERATOR_DEST_IN:
     case CAIRO_OPERATOR_DEST_ATOP:
 	return FALSE;
+    default:
+	ASSERT_NOT_REACHED;
+	return FALSE; /* squelch warning */
     }
-
-    ASSERT_NOT_REACHED;
-    return FALSE;
 }
 
 /**
@@ -456,18 +459,16 @@ _cairo_operator_bounded_by_source (cairo_operator_t op)
     case CAIRO_OPERATOR_DEST_IN:
     case CAIRO_OPERATOR_DEST_ATOP:
 	return FALSE;
+    default:
+	ASSERT_NOT_REACHED;
+	return FALSE; /* squelch warning */
     }
-
-    ASSERT_NOT_REACHED;
-    return FALSE;
 }
 
 uint32_t
 _cairo_operator_bounded_by_either (cairo_operator_t op)
 {
     switch (op) {
-    default:
-	ASSERT_NOT_REACHED;
     case CAIRO_OPERATOR_OVER:
     case CAIRO_OPERATOR_ATOP:
     case CAIRO_OPERATOR_DEST:
@@ -500,6 +501,9 @@ _cairo_operator_bounded_by_either (cairo_operator_t op)
     case CAIRO_OPERATOR_DEST_IN:
     case CAIRO_OPERATOR_DEST_ATOP:
 	return 0;
+    default:
+	ASSERT_NOT_REACHED;
+	return FALSE; /* squelch warning */
     }
 
 }
@@ -863,6 +867,8 @@ _cairo_strtod (const char *nptr, char **endptr)
 	    bufptr += decimal_point_len;
 	    delta -= decimal_point_len - 1;
 	    have_dp = TRUE;
+	} else if (bufptr == buf && (*p == '-' || *p == '+')) {
+	    *bufptr++ = *p;
 	} else {
 	    break;
 	}

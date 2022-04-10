@@ -56,30 +56,36 @@
 
 /* CFF Dict Operators. If the high byte is 0 the command is encoded
  * with a single byte. */
-#define BASEFONTNAME_OP  0x0c16
-#define CIDCOUNT_OP      0x0c22
-#define CHARSET_OP       0x000f
-#define CHARSTRINGS_OP   0x0011
-#define COPYRIGHT_OP     0x0c00
-#define DEFAULTWIDTH_OP  0x0014
-#define ENCODING_OP      0x0010
-#define FAMILYNAME_OP    0x0003
-#define FDARRAY_OP       0x0c24
-#define FDSELECT_OP      0x0c25
-#define FONTBBOX_OP      0x0005
-#define FONTMATRIX_OP    0x0c07
-#define FONTNAME_OP      0x0c26
-#define FULLNAME_OP      0x0002
-#define LOCAL_SUB_OP     0x0013
-#define NOMINALWIDTH_OP  0x0015
-#define NOTICE_OP        0x0001
-#define POSTSCRIPT_OP    0x0c15
-#define PRIVATE_OP       0x0012
-#define ROS_OP           0x0c1e
-#define UNIQUEID_OP      0x000d
-#define VERSION_OP       0x0000
-#define WEIGHT_OP        0x0004
-#define XUID_OP          0x000e
+#define BASEFONTNAME_OP     0x0c16
+#define CIDCOUNT_OP         0x0c22
+#define CHARSET_OP          0x000f
+#define CHARSTRINGS_OP      0x0011
+#define COPYRIGHT_OP        0x0c00
+#define DEFAULTWIDTH_OP     0x0014
+#define ENCODING_OP         0x0010
+#define FAMILYNAME_OP       0x0003
+#define FDARRAY_OP          0x0c24
+#define FDSELECT_OP         0x0c25
+#define FONTBBOX_OP         0x0005
+#define FONTMATRIX_OP       0x0c07
+#define FONTNAME_OP         0x0c26
+#define FULLNAME_OP         0x0002
+#define LOCAL_SUB_OP        0x0013
+#define NOMINALWIDTH_OP     0x0015
+#define NOTICE_OP           0x0001
+#define POSTSCRIPT_OP       0x0c15
+#define PRIVATE_OP          0x0012
+#define ROS_OP              0x0c1e
+#define UNIQUEID_OP         0x000d
+#define VERSION_OP          0x0000
+#define WEIGHT_OP           0x0004
+#define XUID_OP             0x000e
+#define BLUEVALUES_OP       0x0006
+#define OTHERBLUES_OP       0x0007
+#define FAMILYBLUES_OP      0x0008
+#define FAMILYOTHERBLUES_OP 0x0009
+#define STEMSNAPH_OP        0x0c0c
+#define STEMSNAPV_OP        0x0c0d
 
 #define NUM_STD_STRINGS 391
 
@@ -241,10 +247,10 @@ static unsigned char *
 decode_integer (unsigned char *p, int *integer)
 {
     if (*p == 28) {
-        *integer = (int)(p[1]<<8 | p[2]);
+        *integer = (int16_t)(p[1]<<8 | p[2]);
         p += 3;
     } else if (*p == 29) {
-        *integer = (int)((p[1] << 24) | (p[2] << 16) | (p[3] << 8) | p[4]);
+        *integer = (int32_t)(((uint32_t)p[1] << 24) | (p[2] << 16) | (p[3] << 8) | p[4]);
         p += 5;
     } else if (*p >= 32 && *p <= 246) {
         *integer = *p++ - 139;
@@ -548,7 +554,7 @@ cff_index_append_copy (cairo_array_t *index,
     element.length = length;
     element.is_copy = TRUE;
     element.data = _cairo_malloc (element.length);
-    if (unlikely (element.data == NULL))
+    if (unlikely (element.data == NULL && length != 0))
 	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
 
     memcpy (element.data, object, element.length);
@@ -615,13 +621,27 @@ cff_dict_create_operator (int            operator,
 	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
 
     _cairo_dict_init_key (op, operator);
-    op->operand = _cairo_malloc (size);
-    if (unlikely (op->operand == NULL)) {
-        free (op);
-	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+    if (size != 0) {
+	op->operand = _cairo_malloc (size);
+	if (unlikely (op->operand == NULL)) {
+	    free (op);
+	    return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+	}
+	memcpy (op->operand, operand, size);
+    } else {
+	op->operand = NULL;
+	/* Delta-encoded arrays can be empty. */
+	if (operator != BLUEVALUES_OP &&
+	    operator != OTHERBLUES_OP &&
+	    operator != FAMILYBLUES_OP &&
+	    operator != FAMILYOTHERBLUES_OP &&
+	    operator != STEMSNAPH_OP &&
+	    operator != STEMSNAPV_OP) {
+	    free (op);
+	    return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+	}
     }
 
-    memcpy (op->operand, operand, size);
     op->operand_length = size;
     op->operand_offset = -1;
 
@@ -971,6 +991,8 @@ cairo_cff_font_read_fdselect (cairo_cff_font_t *font, unsigned char *p)
             p += 2;
             fd = *p++;
             last = get_unaligned_be16 (p);
+            if (last > font->num_glyphs)
+                return CAIRO_INT_STATUS_UNSUPPORTED;
             for (j = first; j < last; j++)
                 font->fdselect[j] = fd;
         }
@@ -1086,7 +1108,7 @@ cairo_cff_font_read_cid_fontdict (cairo_cff_font_t *font, unsigned char *ptr)
             goto fail;
     }
 
-    return CAIRO_STATUS_SUCCESS;
+    status = CAIRO_STATUS_SUCCESS;
 
 fail:
     cff_index_fini (&index);
@@ -1576,14 +1598,18 @@ cairo_cff_parse_charstring (cairo_cff_font_t *font,
 
             if (font->is_cid) {
                 fd = font->fdselect[glyph_id];
-                sub_num = font->type2_stack_top_value + font->fd_local_sub_bias[fd];
+		sub_num = font->type2_stack_top_value + font->fd_local_sub_bias[fd];
+		if (sub_num >= (int)_cairo_array_num_elements(&font->fd_local_sub_index[fd]))
+		    return CAIRO_INT_STATUS_UNSUPPORTED;
                 element = _cairo_array_index (&font->fd_local_sub_index[fd], sub_num);
                 if (! font->fd_local_subs_used[fd][sub_num]) {
 		    font->fd_local_subs_used[fd][sub_num] = TRUE;
 		    cairo_cff_parse_charstring (font, element->data, element->length, glyph_id, need_width);
 		}
             } else {
-                sub_num = font->type2_stack_top_value + font->local_sub_bias;
+		sub_num = font->type2_stack_top_value + font->local_sub_bias;
+		if (sub_num >= (int)_cairo_array_num_elements(&font->local_sub_index))
+		    return CAIRO_INT_STATUS_UNSUPPORTED;
                 element = _cairo_array_index (&font->local_sub_index, sub_num);
                 if (! font->local_subs_used[sub_num] ||
 		    (need_width && !font->type2_found_width))
@@ -1608,6 +1634,8 @@ cairo_cff_parse_charstring (cairo_cff_font_t *font,
 		font->type2_seen_first_int = FALSE;
 
 	    sub_num = font->type2_stack_top_value + font->global_sub_bias;
+	    if (sub_num >= (int)_cairo_array_num_elements(&font->global_sub_index))
+		return CAIRO_INT_STATUS_UNSUPPORTED;
 	    element = _cairo_array_index (&font->global_sub_index, sub_num);
             if (! font->global_subs_used[sub_num] ||
 		(need_width && !font->type2_found_width))

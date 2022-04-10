@@ -709,6 +709,24 @@ _emit_line_width (cairo_script_surface_t *surface,
 }
 
 static cairo_status_t
+_emit_hairline (cairo_script_surface_t *surface, cairo_bool_t set_hairline)
+{
+    assert (target_is_active (surface));
+
+    if (surface->cr.current_style.is_hairline == set_hairline)
+    {
+	return CAIRO_STATUS_SUCCESS;
+    }
+
+    surface->cr.current_style.is_hairline = set_hairline;
+
+    _cairo_output_stream_printf (to_context (surface)->stream, 
+					"%d set-hairline\n",
+					set_hairline);
+    return CAIRO_STATUS_SUCCESS;
+}
+
+static cairo_status_t
 _emit_line_cap (cairo_script_surface_t *surface,
 		cairo_line_cap_t line_cap)
 {
@@ -855,6 +873,10 @@ _emit_stroke_style (cairo_script_surface_t *surface,
 	return status;
 
     status = _emit_miter_limit (surface, style->miter_limit, force);
+    if (unlikely (status))
+	return status;
+
+    status = _emit_hairline (surface, style->is_hairline);
     if (unlikely (status))
 	return status;
 
@@ -1839,7 +1861,7 @@ _emit_path_boxes (cairo_script_surface_t *surface,
 {
     cairo_script_context_t *ctx = to_context (surface);
     cairo_path_fixed_iter_t iter;
-    cairo_status_t status;
+    cairo_status_t status = CAIRO_STATUS_SUCCESS;
     struct _cairo_boxes_chunk *chunk;
     cairo_boxes_t boxes;
     cairo_box_t box;
@@ -3047,7 +3069,7 @@ _emit_scaled_glyph_vector (cairo_script_surface_t *surface,
 
     index = ++font_private->subset_glyph_index;
     scaled_glyph->dev_private_key = ctx;
-    scaled_glyph->dev_private = (void *) index;
+    scaled_glyph->dev_private = (void *)(uintptr_t)index;
 
     _cairo_output_stream_printf (ctx->stream,
 				 "%lu <<\n"
@@ -3095,7 +3117,7 @@ _emit_scaled_glyph_bitmap (cairo_script_surface_t *surface,
 
     index = ++font_private->subset_glyph_index;
     scaled_glyph->dev_private_key = ctx;
-    scaled_glyph->dev_private = (void *) index;
+    scaled_glyph->dev_private = (void *)(uintptr_t)index;
 
     _cairo_output_stream_printf (ctx->stream,
 				 "%lu <<\n"
@@ -3172,6 +3194,7 @@ _emit_scaled_glyphs (cairo_script_surface_t *surface,
 	status = _cairo_scaled_glyph_lookup (scaled_font,
 					     glyphs[n].index,
 					     CAIRO_SCALED_GLYPH_INFO_METRICS,
+                                             NULL, /* foreground color */
 					     &scaled_glyph);
 	if (unlikely (status))
 	    break;
@@ -3182,6 +3205,7 @@ _emit_scaled_glyphs (cairo_script_surface_t *surface,
 	status = _cairo_scaled_glyph_lookup (scaled_font,
 					     glyphs[n].index,
 					     CAIRO_SCALED_GLYPH_INFO_RECORDING_SURFACE,
+                                             NULL, /* foreground color */
 					     &scaled_glyph);
 	if (_cairo_status_is_error (status))
 	    break;
@@ -3207,6 +3231,7 @@ _emit_scaled_glyphs (cairo_script_surface_t *surface,
 	status = _cairo_scaled_glyph_lookup (scaled_font,
 					     glyphs[n].index,
 					     CAIRO_SCALED_GLYPH_INFO_SURFACE,
+                                             NULL, /* foreground color */
 					     &scaled_glyph);
 	if (_cairo_status_is_error (status))
 	    break;
@@ -3389,13 +3414,14 @@ _cairo_script_surface_show_text_glyphs (void			    *abstract_surface,
 	    status = _cairo_scaled_glyph_lookup (scaled_font,
 						 glyphs[n].index,
 						 CAIRO_SCALED_GLYPH_INFO_METRICS,
+						 NULL, /* foreground color */
 						 &scaled_glyph);
 	    if (unlikely (status)) {
 		_cairo_scaled_font_thaw_cache (scaled_font);
 		goto BAIL;
 	    }
 
-	    if ((long unsigned) scaled_glyph->dev_private > 256)
+	    if ((uintptr_t)scaled_glyph->dev_private > 256)
 		break;
 	}
     }
@@ -3412,6 +3438,7 @@ _cairo_script_surface_show_text_glyphs (void			    *abstract_surface,
 	status = _cairo_scaled_glyph_lookup (scaled_font,
 					     glyphs[n].index,
 					     CAIRO_SCALED_GLYPH_INFO_METRICS,
+                                             NULL, /* foreground color */
 					     &scaled_glyph);
 	if (unlikely (status)) {
 	    _cairo_scaled_font_thaw_cache (scaled_font);
@@ -3466,7 +3493,7 @@ _cairo_script_surface_show_text_glyphs (void			    *abstract_surface,
 	    if (font_private->has_sfnt)
 		c = glyphs[n].index;
 	    else
-		c = (uint8_t) (long unsigned) scaled_glyph->dev_private;
+		c = (uint8_t) (uintptr_t) scaled_glyph->dev_private;
 
 	    _cairo_output_stream_write (base85_stream, &c, 1);
 	} else {
@@ -3475,7 +3502,7 @@ _cairo_script_surface_show_text_glyphs (void			    *abstract_surface,
 					     glyphs[n].index);
 	    else
 		_cairo_output_stream_printf (ctx->stream, " %lu",
-					     (long unsigned) scaled_glyph->dev_private);
+					     (long unsigned) (uintptr_t)scaled_glyph->dev_private);
 	}
 
         dx = scaled_glyph->metrics.x_advance;

@@ -29,6 +29,17 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+
+#if HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#ifdef HAVE_MMAP
+#include <sys/mman.h>
+#endif
 
 #include <cairo.h>
 #include <cairo-pdf.h>
@@ -180,6 +191,7 @@ draw_page_num (cairo_surface_t *surface, cairo_t *cr, const char *prefix, int nu
     cairo_save (cr);
     cairo_select_font_face (cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(cr, 12);
+    cairo_set_source_rgb (cr, 0, 0, 0);
     cairo_move_to (cr, PAGE_WIDTH/2, PAGE_HEIGHT - MARGIN);
     cairo_show_text (cr, buf);
     cairo_restore (cr);
@@ -300,12 +312,57 @@ draw_section (cairo_surface_t *surface, cairo_t *cr, const struct section *secti
 static void
 draw_cover (cairo_surface_t *surface, cairo_t *cr)
 {
+    cairo_text_extents_t text_extents;
+    char buf[200];
+    cairo_rectangle_t url_box;
+    const char *cairo_url = "https://www.cairographics.org/";
+    const double url_box_margin = 20.0;
+
+    cairo_tag_begin (cr, CAIRO_TAG_DEST, "name='cover'  internal");
+    cairo_tag_end (cr, CAIRO_TAG_DEST);
+
     cairo_select_font_face (cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
     cairo_set_font_size(cr, 16);
-    cairo_move_to (cr, PAGE_WIDTH/3, PAGE_HEIGHT/2);
+    cairo_move_to (cr, PAGE_WIDTH/3, PAGE_HEIGHT/3);
     cairo_tag_begin (cr, "Span", NULL);
     cairo_show_text (cr, "PDF Features Test");
     cairo_tag_end (cr, "Span");
+
+    /* Test URL link using "rect" attribute. The entire rectangle surrounding the URL should be a clickable link.  */
+    cairo_move_to (cr, PAGE_WIDTH/3, 2*PAGE_HEIGHT/3);
+    cairo_select_font_face (cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_set_font_size(cr, TEXT_SIZE);
+    cairo_set_source_rgb (cr, 0, 0, 1);
+    cairo_show_text (cr, cairo_url);
+    cairo_text_extents (cr, cairo_url, &text_extents);
+    url_box.x = PAGE_WIDTH/3 - url_box_margin;
+    url_box.y = 2*PAGE_HEIGHT/3 - url_box_margin;
+    url_box.width = text_extents.width + 2*url_box_margin;
+    url_box.height = -text_extents.height + 2*url_box_margin;
+    cairo_rectangle(cr, url_box.x, url_box.y, url_box.width, url_box.height);
+    cairo_stroke(cr);
+    snprintf(buf, sizeof(buf), "rect=[%f %f %f %f] uri=\'%s\'",
+             url_box.x, url_box.y, url_box.width, url_box.height, cairo_url);
+    cairo_tag_begin (cr, CAIRO_TAG_LINK, buf);
+    cairo_tag_end (cr, CAIRO_TAG_LINK);
+
+    /* Create link to not yet emmited page number */
+    cairo_tag_begin (cr, CAIRO_TAG_LINK, "page=5");
+    cairo_move_to (cr, PAGE_WIDTH/3, 4*PAGE_HEIGHT/5);
+    cairo_show_text (cr, "link to page 5");
+    cairo_tag_end (cr, CAIRO_TAG_LINK);
+
+    /* Create link to not yet emmited destination */
+    cairo_tag_begin (cr, CAIRO_TAG_LINK, "dest='Section 3.3'");
+    cairo_move_to (cr, PAGE_WIDTH/3, 4.2*PAGE_HEIGHT/5);
+    cairo_show_text (cr, "link to page section 3.3");
+    cairo_tag_end (cr, CAIRO_TAG_LINK);
+
+    /* Create link to external file */
+    cairo_tag_begin (cr, CAIRO_TAG_LINK, "file='foo.pdf' page=1");
+    cairo_move_to (cr, PAGE_WIDTH/3, 4.4*PAGE_HEIGHT/5);
+    cairo_show_text (cr, "link file 'foo.pdf'");
+    cairo_tag_end (cr, CAIRO_TAG_LINK);
 
     draw_page_num (surface, cr, "cover", 0);
 }
@@ -326,6 +383,12 @@ create_document (cairo_surface_t *surface, cairo_t *cr)
     cairo_pdf_surface_set_metadata (surface, CAIRO_PDF_METADATA_CREATE_DATE, "2016-01-01T12:34:56+10:30");
     cairo_pdf_surface_set_metadata (surface, CAIRO_PDF_METADATA_MOD_DATE, "2016-06-21T05:43:21Z");
 
+    cairo_pdf_surface_set_custom_metadata (surface, "DocumentNumber", "12345");
+    /* Include some non ASCII characters */
+    cairo_pdf_surface_set_custom_metadata (surface, "Document Name", "\xc2\xab""cairo test\xc2\xbb");
+    /* Test unsetting custom metadata. "DocumentNumber" should not be emitted. */
+    cairo_pdf_surface_set_custom_metadata (surface, "DocumentNumber", "");
+
     cairo_tag_begin (cr, "Document", NULL);
 
     draw_cover (surface, cr);
@@ -333,6 +396,26 @@ create_document (cairo_surface_t *surface, cairo_t *cr)
 				   CAIRO_PDF_OUTLINE_ROOT,
 				   "Cover", "page=1",
                                    CAIRO_PDF_OUTLINE_FLAG_BOLD);
+
+    /* Create a simple link annotation. */
+    cairo_tag_begin (cr, CAIRO_TAG_LINK, "uri='http://example.org' rect=[10 10 20 20]");
+    cairo_tag_end (cr, CAIRO_TAG_LINK);
+
+    /* Try to create a link annotation while the clip is empty;
+     * it will still be emitted.
+     */
+    cairo_save (cr);
+    cairo_new_path (cr);
+    cairo_rectangle (cr, 100, 100, 50, 0);
+    cairo_clip (cr);
+    cairo_tag_begin (cr, CAIRO_TAG_LINK, "uri='http://example.com' rect=[100 100 20 20]");
+    cairo_tag_end (cr, CAIRO_TAG_LINK);
+    cairo_restore (cr);
+
+    /* An annotation whose rect has a negative coordinate. */
+    cairo_tag_begin (cr, CAIRO_TAG_LINK, "uri='http://127.0.0.1/' rect=[10.0 -10.0 100.0 100.0]");
+    cairo_tag_end (cr, CAIRO_TAG_LINK);
+
     cairo_show_page (cr);
 
     page_num = 0;
@@ -361,23 +444,115 @@ create_document (cairo_surface_t *surface, cairo_t *cr)
 	sect++;
     }
 
+    cairo_show_page (cr);
+
+    cairo_tag_begin (cr, CAIRO_TAG_LINK, "dest='cover'");
+    cairo_move_to (cr, PAGE_WIDTH/3, 2*PAGE_HEIGHT/5);
+    cairo_show_text (cr, "link to cover");
+    cairo_tag_end (cr, CAIRO_TAG_LINK);
+
+    cairo_tag_begin (cr, CAIRO_TAG_LINK, "page=3");
+    cairo_move_to (cr, PAGE_WIDTH/3, 3*PAGE_HEIGHT/5);
+    cairo_show_text (cr, "link to page 3");
+    cairo_tag_end (cr, CAIRO_TAG_LINK);
+
     cairo_tag_end (cr, "Document");
 }
 
+#ifdef HAVE_MMAP
 static cairo_test_status_t
-preamble (cairo_test_context_t *ctx)
+check_contains_string(cairo_test_context_t *ctx, const void *hay, size_t size, const char *needle)
+{
+    if (memmem(hay, size, needle, strlen(needle)))
+        return CAIRO_TEST_SUCCESS;
+
+    cairo_test_log (ctx, "Failed to find expected string in generated PDF: %s\n", needle);
+    return CAIRO_TEST_FAILURE;
+}
+#endif
+
+static cairo_test_status_t
+check_created_pdf(cairo_test_context_t *ctx, const char* filename)
+{
+    cairo_test_status_t result = CAIRO_TEST_SUCCESS;
+    int fd;
+    struct stat st;
+#ifdef HAVE_MMAP
+    void *contents;
+#endif
+
+    fd = open(filename, O_RDONLY, 0);
+    if (fd < 0) {
+        cairo_test_log (ctx, "Failed to open generated PDF file %s: %s\n", filename, strerror(errno));
+        return CAIRO_TEST_FAILURE;
+    }
+
+    if (fstat(fd, &st) == -1)
+    {
+        cairo_test_log (ctx, "Failed to stat generated PDF file %s: %s\n", filename, strerror(errno));
+        close(fd);
+        return CAIRO_TEST_FAILURE;
+    }
+
+    if (st.st_size == 0)
+    {
+        cairo_test_log (ctx, "Generated PDF file %s is empty\n", filename);
+        close(fd);
+        return CAIRO_TEST_FAILURE;
+    }
+
+#ifdef HAVE_MMAP
+    contents = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (contents == NULL)
+    {
+        cairo_test_log (ctx, "Failed to mmap generated PDF file %s: %s\n", filename, strerror(errno));
+        close(fd);
+        return CAIRO_TEST_FAILURE;
+    }
+
+    /* check metadata */
+    result |= check_contains_string(ctx, contents, st.st_size, "/Title (PDF Features Test)");
+    result |= check_contains_string(ctx, contents, st.st_size, "/Author (cairo test suite)");
+    result |= check_contains_string(ctx, contents, st.st_size, "/Creator (pdf-features)");
+    result |= check_contains_string(ctx, contents, st.st_size, "/CreationDate (20160101123456+10'30')");
+    result |= check_contains_string(ctx, contents, st.st_size, "/ModDate (20160621054321Z)");
+
+    /* check that both the example.org and example.com links were generated */
+    result |= check_contains_string(ctx, contents, st.st_size, "http://example.org");
+    result |= check_contains_string(ctx, contents, st.st_size, "http://example.com");
+
+    // TODO: add more checks
+
+    munmap(contents, st.st_size);
+#endif
+
+    close(fd);
+
+    return result;
+}
+
+static cairo_test_status_t
+create_pdf (cairo_test_context_t *ctx, cairo_bool_t check_output)
 {
     cairo_surface_t *surface;
     cairo_t *cr;
     cairo_status_t status, status2;
+    cairo_test_status_t result;
+    cairo_pdf_version_t version;
     char *filename;
     const char *path = cairo_test_mkdir (CAIRO_TEST_OUTPUT_DIR) ? CAIRO_TEST_OUTPUT_DIR : ".";
 
-    if (! cairo_test_is_target_enabled (ctx, "pdf"))
-	return CAIRO_TEST_UNTESTED;
+    /* check_created_pdf() only works with version 1.4. In version 1.5
+     * the text that is searched for is compressed. */
+    version = check_output ? CAIRO_PDF_VERSION_1_4 : CAIRO_PDF_VERSION_1_5;
 
-    xasprintf (&filename, "%s/%s.pdf", path, BASENAME);
+    xasprintf (&filename, "%s/%s-%s.pdf",
+               path,
+               BASENAME,
+               check_output ? "1.4" : "1.5");
     surface = cairo_pdf_surface_create (filename, PAGE_WIDTH, PAGE_HEIGHT);
+
+    cairo_pdf_surface_restrict_to_version (surface, version);
 
     cr = cairo_create (surface);
     create_document (surface, cr);
@@ -386,7 +561,7 @@ preamble (cairo_test_context_t *ctx)
     cairo_destroy (cr);
     cairo_surface_finish (surface);
     status2 = cairo_surface_status (surface);
-    if (status != CAIRO_STATUS_SUCCESS)
+    if (status == CAIRO_STATUS_SUCCESS)
 	status = status2;
 
     cairo_surface_destroy (surface);
@@ -396,9 +571,31 @@ preamble (cairo_test_context_t *ctx)
 	return CAIRO_TEST_FAILURE;
     }
 
+    result = CAIRO_TEST_SUCCESS;
+    if (check_output)
+        result = check_created_pdf(ctx, filename);
+
     free (filename);
 
-    return CAIRO_TEST_SUCCESS;
+    return result;
+}
+
+static cairo_test_status_t
+preamble (cairo_test_context_t *ctx)
+{
+    cairo_test_status_t result;
+
+    if (! cairo_test_is_target_enabled (ctx, "pdf"))
+	return CAIRO_TEST_UNTESTED;
+
+    /* Create version 1.5 PDF. This can only be manually checked */
+    create_pdf (ctx, FALSE);
+
+    /* Create version 1.4 PDF and checkout output */
+    result = create_pdf (ctx, TRUE);
+
+
+    return result;
 }
 
 CAIRO_TEST (pdf_tagged_text,

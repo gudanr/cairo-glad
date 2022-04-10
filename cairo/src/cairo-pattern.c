@@ -76,6 +76,7 @@ static const cairo_solid_pattern_t _cairo_pattern_nil = {
       CAIRO_FILTER_DEFAULT,		/* filter */
       CAIRO_EXTEND_GRADIENT_DEFAULT,	/* extend */
       FALSE,				/* has component alpha */
+      FALSE,				/* is_userfont_foreground */
       { 1., 0., 0., 1., 0., 0., },	/* matrix */
       1.0                               /* opacity */
     }
@@ -92,6 +93,7 @@ static const cairo_solid_pattern_t _cairo_pattern_nil_null_pointer = {
       CAIRO_FILTER_DEFAULT,		/* filter */
       CAIRO_EXTEND_GRADIENT_DEFAULT,	/* extend */
       FALSE,				/* has component alpha */
+      FALSE,				/* is_userfont_foreground */
       { 1., 0., 0., 1., 0., 0., },	/* matrix */
       1.0                               /* opacity */
     }
@@ -108,6 +110,7 @@ const cairo_solid_pattern_t _cairo_pattern_black = {
       CAIRO_FILTER_NEAREST,		/* filter */
       CAIRO_EXTEND_REPEAT,		/* extend */
       FALSE,				/* has component alpha */
+      FALSE,				/* is_userfont_foreground */
       { 1., 0., 0., 1., 0., 0., },	/* matrix */
       1.0                               /* opacity */
     },
@@ -125,6 +128,7 @@ const cairo_solid_pattern_t _cairo_pattern_clear = {
       CAIRO_FILTER_NEAREST,		/* filter */
       CAIRO_EXTEND_REPEAT,		/* extend */
       FALSE,				/* has component alpha */
+      FALSE,				/* is_userfont_foreground */
       { 1., 0., 0., 1., 0., 0., },	/* matrix */
       1.0                               /* opacity */
     },
@@ -142,6 +146,7 @@ const cairo_solid_pattern_t _cairo_pattern_white = {
       CAIRO_FILTER_NEAREST,		/* filter */
       CAIRO_EXTEND_REPEAT,		/* extend */
       FALSE,				/* has component alpha */
+      FALSE,				/* is_userfont_foreground */
       { 1., 0., 0., 1., 0., 0., },	/* matrix */
       1.0                               /* opacity */
     },
@@ -233,6 +238,7 @@ _cairo_pattern_init (cairo_pattern_t *pattern, cairo_pattern_type_t type)
     pattern->opacity   = 1.0;
 
     pattern->has_component_alpha = FALSE;
+    pattern->is_userfont_foreground = FALSE;
 
     cairo_matrix_init_identity (&pattern->matrix);
 
@@ -3863,8 +3869,8 @@ _cairo_pattern_get_ink_extents (const cairo_pattern_t         *pattern,
     return CAIRO_STATUS_SUCCESS;
 }
 
-static unsigned long
-_cairo_solid_pattern_hash (unsigned long hash,
+static uintptr_t
+_cairo_solid_pattern_hash (uintptr_t hash,
 			   const cairo_solid_pattern_t *solid)
 {
     hash = _cairo_hash_bytes (hash, &solid->color, sizeof (solid->color));
@@ -3872,8 +3878,8 @@ _cairo_solid_pattern_hash (unsigned long hash,
     return hash;
 }
 
-static unsigned long
-_cairo_gradient_color_stops_hash (unsigned long hash,
+static uintptr_t
+_cairo_gradient_color_stops_hash (uintptr_t hash,
 				  const cairo_gradient_pattern_t *gradient)
 {
     unsigned int n;
@@ -3894,8 +3900,8 @@ _cairo_gradient_color_stops_hash (unsigned long hash,
     return hash;
 }
 
-unsigned long
-_cairo_linear_pattern_hash (unsigned long hash,
+uintptr_t
+_cairo_linear_pattern_hash (uintptr_t hash,
 			    const cairo_linear_pattern_t *linear)
 {
     hash = _cairo_hash_bytes (hash, &linear->pd1, sizeof (linear->pd1));
@@ -3904,8 +3910,8 @@ _cairo_linear_pattern_hash (unsigned long hash,
     return _cairo_gradient_color_stops_hash (hash, &linear->base);
 }
 
-unsigned long
-_cairo_radial_pattern_hash (unsigned long hash,
+uintptr_t
+_cairo_radial_pattern_hash (uintptr_t hash,
 			    const cairo_radial_pattern_t *radial)
 {
     hash = _cairo_hash_bytes (hash, &radial->cd1.center, sizeof (radial->cd1.center));
@@ -3916,8 +3922,8 @@ _cairo_radial_pattern_hash (unsigned long hash,
     return _cairo_gradient_color_stops_hash (hash, &radial->base);
 }
 
-static unsigned long
-_cairo_mesh_pattern_hash (unsigned long hash, const cairo_mesh_pattern_t *mesh)
+static uintptr_t
+_cairo_mesh_pattern_hash (uintptr_t hash, const cairo_mesh_pattern_t *mesh)
 {
     const cairo_mesh_patch_t *patch = _cairo_array_index_const (&mesh->patches, 0);
     unsigned int i, n = _cairo_array_num_elements (&mesh->patches);
@@ -3928,8 +3934,8 @@ _cairo_mesh_pattern_hash (unsigned long hash, const cairo_mesh_pattern_t *mesh)
     return hash;
 }
 
-static unsigned long
-_cairo_surface_pattern_hash (unsigned long hash,
+static uintptr_t
+_cairo_surface_pattern_hash (uintptr_t hash,
 			     const cairo_surface_pattern_t *surface)
 {
     hash ^= surface->surface->unique_id;
@@ -3937,8 +3943,8 @@ _cairo_surface_pattern_hash (unsigned long hash,
     return hash;
 }
 
-static unsigned long
-_cairo_raster_source_pattern_hash (unsigned long hash,
+static uintptr_t
+_cairo_raster_source_pattern_hash (uintptr_t hash,
 				   const cairo_raster_source_pattern_t *raster)
 {
     hash ^= (uintptr_t)raster->user_data;
@@ -3946,10 +3952,10 @@ _cairo_raster_source_pattern_hash (unsigned long hash,
     return hash;
 }
 
-unsigned long
+uintptr_t
 _cairo_pattern_hash (const cairo_pattern_t *pattern)
 {
-    unsigned long hash = _CAIRO_HASH_INIT_VALUE;
+    uintptr_t hash = _CAIRO_HASH_INIT_VALUE;
 
     if (pattern->status)
 	return 0;

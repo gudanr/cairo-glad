@@ -67,14 +67,12 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #elif CAIRO_HAS_GL_SURFACE
-
 #if(0)
 #include <GL/gl.h>
 #include <GL/glext.h>
 #else
 #include <glad/glad.h>
 #endif
-
 #endif
 
 #include "cairo-gl-ext-def-private.h"

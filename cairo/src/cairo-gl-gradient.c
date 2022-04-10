@@ -39,7 +39,7 @@
  */
 
 #include "cairoint.h"
-
+#include <stdint.h>
 #include "cairo-error-private.h"
 #include "cairo-gl-gradient-private.h"
 #include "cairo-gl-private.h"
@@ -99,9 +99,9 @@ static uint32_t color_stop_to_pixel(const cairo_gradient_stop_t *stop)
     b = premultiply(stop->color.blue,  stop->color.alpha);
 
     if (_cairo_is_little_endian ())
-	return a << 24 | r << 16 | g << 8 | b << 0;
+	return (uint32_t)a << 24 | r << 16 | g << 8 | b << 0;
     else
-	return a << 0 | r << 8 | g << 16 | b << 24;
+	return a << 0 | r << 8 | g << 16 | (uint32_t)b << 24;
 }
 
 static cairo_status_t
@@ -188,7 +188,7 @@ _cairo_gl_gradient_render (const cairo_gl_context_t    *ctx,
     return CAIRO_STATUS_SUCCESS;
 }
 
-static unsigned long
+static uintptr_t
 _cairo_gl_gradient_hash (unsigned int                  n_stops,
 			 const cairo_gradient_stop_t  *stops)
 {
@@ -199,7 +199,7 @@ _cairo_gl_gradient_hash (unsigned int                  n_stops,
 
 static cairo_gl_gradient_t *
 _cairo_gl_gradient_lookup (cairo_gl_context_t           *ctx,
-			   unsigned long                 hash,
+			   uintptr_t                     hash,
 			   unsigned int                  n_stops,
 			   const cairo_gradient_stop_t  *stops)
 {
@@ -230,7 +230,7 @@ _cairo_gl_gradient_create (cairo_gl_context_t           *ctx,
 			   const cairo_gradient_stop_t  *stops,
 			   cairo_gl_gradient_t         **gradient_out)
 {
-    unsigned long hash;
+    uintptr_t hash;
     cairo_gl_gradient_t *gradient;
     cairo_status_t status;
     int tex_width;

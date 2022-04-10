@@ -25,7 +25,11 @@ test_sources = \
 	big-trap.c					\
 	bilevel-image.c					\
 	bug-40410.c					\
+	bug-361.c					\
+	bug-431.c					\
+	bug-448.c					\
 	bug-51910.c					\
+	bug-75705.c					\
 	bug-84115.c					\
 	bug-bo-rectangular.c				\
 	bug-bo-collins.c				\
@@ -33,6 +37,7 @@ test_sources = \
 	bug-source-cu.c					\
 	bug-extents.c					\
 	bug-seams.c					\
+	bug-image-compositor.c				\
 	caps.c						\
 	checkerboard.c					\
 	caps-joins.c					\
@@ -144,7 +149,6 @@ test_sources = \
 	font-face-get-type.c				\
 	font-matrix-translation.c			\
 	font-options.c					\
-	font-variations.c				\
 	glyph-cache-pressure.c				\
 	get-and-set.c					\
 	get-clip.c					\
@@ -158,6 +162,7 @@ test_sources = \
 	group-paint.c					\
 	group-state.c					\
 	group-unaligned.c				\
+	hairline.c					\
 	half-coverage.c					\
 	halo.c						\
 	hatchings.c					\
@@ -229,7 +234,9 @@ test_sources = \
 	operator-alpha-alpha.c				\
 	operator-clear.c				\
 	operator-source.c				\
+	operator-www.c				\
 	outline-tolerance.c				\
+	overflow.c                                      \
 	over-above-source.c				\
 	over-around-source.c				\
 	over-below-source.c				\
@@ -277,6 +284,8 @@ test_sources = \
 	record-neg-extents.c                            \
 	record-mesh.c					\
 	record-replay-extend.c                          \
+	record-transform-paint.c                          \
+	record-write-png.c					\
 	recording-ink-extents.c                         \
 	recording-surface-pattern.c			\
 	recording-surface-extend.c			\
@@ -316,6 +325,7 @@ test_sources = \
 	show-text-current-point.c			\
 	shape-general-convex.c				\
 	shape-sierpinski.c				\
+	shifted-operator.c				\
 	simple.c					\
 	skew-extreme.c					\
 	smask.c						\
@@ -356,6 +366,7 @@ test_sources = \
 	text-glyph-range.c				\
 	text-pattern.c					\
 	text-rotate.c					\
+	text-subpixel.c					\
 	text-transform.c				\
 	text-unhinted-metrics.c				\
 	text-zero-len.c					\
@@ -377,9 +388,11 @@ test_sources = \
 	unclosed-strokes.c				\
 	user-data.c					\
 	user-font.c					\
+	user-font-color.c				\
 	user-font-mask.c				\
 	user-font-proxy.c				\
 	user-font-rescale.c				\
+	user-font-subpixel.c				\
 	world-map.c					\
 	white-in-noop.c					\
 	xcb-huge-image-shm.c				\
@@ -398,7 +411,11 @@ pthread_test_sources =					\
 	$(NULL)
 
 ft_font_test_sources = \
+	font-variations.c
+
+fc_font_test_sources = \
 	bitmap-font.c \
+	ft-color-font.c \
 	ft-font-create-for-ft-face.c \
 	ft-show-glyphs-positioning.c \
 	ft-show-glyphs-table.c \
@@ -412,14 +429,15 @@ gl_surface_test_sources = \
 	gl-surface-source.c
 
 egl_surface_test_sources = \
-       egl-oversized-surface.c \
-       egl-surface-source.c
+	egl-oversized-surface.c \
+	egl-surface-source.c
 
 quartz_surface_test_sources = quartz-surface-source.c
 
 pdf_surface_test_sources = \
 	pdf-features.c \
 	pdf-mime-data.c \
+	pdf-operators-text.c \
 	pdf-surface-source.c \
 	pdf-tagged-text.c
 

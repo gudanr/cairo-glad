@@ -16,11 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define _GNU_SOURCE
-
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 /* The autoconf on OpenBSD 4.5 produces the malformed constant name
  * SIZEOF_VOID__ rather than SIZEOF_VOID_P.  Work around that here. */
@@ -103,8 +99,13 @@
 #define CAIRO_BITSWAP8(c) ((((c) * 0x0802LU & 0x22110LU) | ((c) * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16)
 
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
-#define CAIRO_PRINTF_FORMAT(fmt_index, va_index) \
+#ifdef __MINGW32__
+#define CAIRO_PRINTF_FORMAT(fmt_index, va_index)                        \
+	__attribute__((__format__(__MINGW_PRINTF_FORMAT, fmt_index, va_index)))
+#else
+#define CAIRO_PRINTF_FORMAT(fmt_index, va_index)                        \
 	__attribute__((__format__(__printf__, fmt_index, va_index)))
+#endif
 #else
 #define CAIRO_PRINTF_FORMAT(fmt_index, va_index)
 #endif
@@ -138,7 +139,7 @@ static void *_dlhandle = RTLD_NEXT;
 #else
 #error Unexpected pointer size
 #endif
-#define BUCKET(b, ptr) (((unsigned long) (ptr) >> PTR_SHIFT) % ARRAY_LENGTH (b))
+#define BUCKET(b, ptr) (((uintptr_t) (ptr) >> PTR_SHIFT) % ARRAY_LENGTH (b))
 
 #if defined(__GNUC__) && (__GNUC__ > 2) && defined(__OPTIMIZE__)
 #define _BOOLEAN_EXPR(expr)                   \
@@ -836,8 +837,12 @@ _init_logfile (void)
 	if (*name == '\0')
 	    strcpy (name, "cairo-trace.dat");
 
-	snprintf (buf, sizeof (buf), "%s/%s.%d.trace",
-		filename, name, getpid());
+	if (snprintf (buf, sizeof (buf), "%s/%s.%d.trace",
+		      filename, name, getpid()) >= (int) sizeof (buf))
+	{
+	    fprintf (stderr, "cairo-trace: Trace file name too long\n");
+	    return FALSE;
+	}
 
 	filename = buf;
     } else {
@@ -1592,6 +1597,7 @@ _status_to_string (cairo_status_t status)
 	f(FREETYPE_ERROR);
 	f(WIN32_GDI_ERROR);
 	f(TAG_ERROR);
+	f(DWRITE_ERROR);
     case CAIRO_STATUS_LAST_STATUS:
 	break;
     }
@@ -1820,6 +1826,7 @@ _encode_string_literal (char *out, int max,
 	    *out++ = '\\';
 	    *out++ = 'r';
 	    max -= 2;
+	    break;
 	case '\t':
 	    *out++ = '\\';
 	    *out++ = 't';
@@ -5313,85 +5320,6 @@ cairo_recording_surface_create (cairo_content_t content,
     _exit_trace ();
     return ret;
 }
-
-#if CAIRO_HAS_VG_SURFACE
-#include <cairo-vg.h>
-cairo_surface_t *
-cairo_vg_surface_create (cairo_vg_context_t *context,
-			 cairo_content_t content,
-			 int width, int height)
-{
-    cairo_surface_t *ret;
-
-    _enter_trace ();
-
-    ret = DLCALL (cairo_vg_surface_create, context, content, width, height);
-
-    _emit_line_info ();
-    if (_write_lock ()) {
-	Object *obj = _create_surface (ret);
-
-	_trace_printf ("dict\n"
-		       "  /type /vg set\n"
-		       "  /content //%s set\n"
-		       "  /width %d set\n"
-		       "  /height %d set\n"
-		       "  surface dup /s%ld exch def\n",
-		       _content_to_string (content),
-		       width, height,
-		       obj->token);
-	obj->width = width;
-	obj->height = height;
-	obj->defined = TRUE;
-	_push_object (obj);
-	dump_stack(__func__);
-	_write_unlock ();
-    }
-
-    _exit_trace ();
-    return ret;
-}
-
-cairo_surface_t *
-cairo_vg_surface_create_for_image (cairo_vg_context_t *context,
-				   VGImage image,
-				   VGImageFormat format,
-				   int width, int height)
-{
-    cairo_surface_t *ret;
-
-    _enter_trace ();
-
-    ret = DLCALL (cairo_vg_surface_create_for_image,
-		  context, image, format, width, height);
-
-    _emit_line_info ();
-    if (_write_lock ()) {
-	Object *obj = _create_surface (ret);
-	cairo_content_t content;
-
-	content = DLCALL (cairo_surface_get_content, ret);
-	_trace_printf ("dict\n"
-		       "  /type /vg set\n"
-		       "  /content //%s set\n"
-		       "  /width %d set\n"
-		       "  /height %d set\n"
-		       "  surface dup /s%ld exch def\n",
-		       _content_to_string (content),
-		       width, height,
-		       obj->token);
-	obj->width = width;
-	obj->height = height;
-	obj->defined = TRUE;
-	_push_object (obj);
-	dump_stack(__func__);
-	_write_unlock ();
-    }
-
-    _exit_trace ();
-    return ret;
-}
-#endif
 
 #if CAIRO_HAS_GL_SURFACE || CAIRO_HAS_GLESV2_SURFACE
 #include <cairo-gl.h>
